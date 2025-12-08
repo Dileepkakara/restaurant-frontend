@@ -19,31 +19,33 @@ export const TableManagement = ({
   onUpdateTable,
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newTable, setNewTable] = useState({ number: 1, capacity: 4 });
+  const [newTable, setNewTable] = useState({ number: 1, capacity: 4, estimatedTime: 15 });
   const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({ number: 0, capacity: 0 });
+  const [editData, setEditData] = useState({ number: 0, capacity: 0, estimatedTime: 0 });
   const [showQR, setShowQR] = useState(null);
 
   const handleAdd = () => {
     onAddTable({
       number: newTable.number,
       capacity: newTable.capacity,
+      estimatedTime: newTable.estimatedTime,
       status: "available",
     });
-    setNewTable({ number: newTable.number + 1, capacity: 4 });
+    setNewTable({ number: newTable.number + 1, capacity: 4, estimatedTime: 15 });
     setShowAddForm(false);
   };
 
   const handleEdit = (table) => {
     setEditingId(table.id);
-    setEditData({ number: table.number, capacity: table.capacity });
+    setEditData({ number: table.number, capacity: table.capacity, estimatedTime: table.estimatedTime });
   };
 
   const handleSaveEdit = (table) => {
     onUpdateTable({ 
       ...table, 
       number: editData.number, 
-      capacity: editData.capacity 
+      capacity: editData.capacity,
+      estimatedTime: editData.estimatedTime
     });
     setEditingId(null);
   };
@@ -102,6 +104,20 @@ export const TableManagement = ({
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">Estimated Time (mins)</label>
+              <input
+                type="number"
+                value={newTable.estimatedTime}
+                onChange={(e) =>
+                  setNewTable({ ...newTable, estimatedTime: parseInt(e.target.value) || 15 })
+                }
+                className="input-field w-24"
+                min={1}
+                max={180}
+              />
+            </div>
+
             <div className="flex gap-2">
               <Button onClick={handleAdd}>
                 <Check className="w-4 h-4 mr-1" /> Add
@@ -155,7 +171,7 @@ export const TableManagement = ({
                 </Badge>
               </div>
 
-              <div className="flex items-center gap-2 text-muted-foreground mb-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <Users className="w-4 h-4" />
                 {editingId === table.id ? (
                   <input
@@ -173,6 +189,27 @@ export const TableManagement = ({
                   />
                 ) : (
                   <span>{table.capacity} seats</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                <span className="text-sm">Est. Time: </span>
+                {editingId === table.id ? (
+                  <input
+                    type="number"
+                    value={editData.estimatedTime}
+                    onChange={(e) =>
+                      setEditData({
+                        ...editData,
+                        estimatedTime: parseInt(e.target.value) || 15,
+                      })
+                    }
+                    className="input-field w-16 px-2 py-1 text-sm"
+                    min={1}
+                    max={180}
+                  />
+                ) : (
+                  <span>{table.estimatedTime} mins</span>
                 )}
               </div>
 

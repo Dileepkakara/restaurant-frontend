@@ -50,7 +50,7 @@ export const DemoSection = () => {
             <p className="text-muted-foreground mb-6">
               Dashboard, orders, menu management, offers, and staff controls.
             </p>
-            <Link to="/admin">
+            <Link to="/admin/signup">
               <Button variant="secondary" className="w-full">
                 Explore Admin Portal
                 <ArrowRight className="w-4 h-4" />
@@ -67,7 +67,7 @@ export const DemoSection = () => {
             <p className="text-muted-foreground mb-6">
               Multi-restaurant management, subscriptions, analytics, and platform control.
             </p>
-            <Link to="/super-admin">
+            <Link to="/admin/signup">
               <Button variant="gold" className="w-full">
                 View Super Admin
                 <ArrowRight className="w-4 h-4" />

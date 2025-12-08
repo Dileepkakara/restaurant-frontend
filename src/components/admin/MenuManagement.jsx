@@ -6,7 +6,6 @@ import {
   Pencil, 
   Trash2, 
   Search,
-  ChevronRight,
   Check,
   X
 } from "lucide-react";
@@ -21,15 +20,23 @@ export const MenuManagement = ({
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [editPrice, setEditPrice] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const filteredItems = items.filter(
-    (item) =>
+  // Extract unique categories from items
+  const categories = ["all", ...new Set(items.map((i) => i.category))];
+
+  // Filter items by search and category
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const handleSave = (item) => {
     if (item.id) {
@@ -83,6 +90,7 @@ export const MenuManagement = ({
           <h2 className="font-display text-xl font-bold">Menu Items</h2>
 
           <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -94,6 +102,19 @@ export const MenuManagement = ({
               />
             </div>
 
+            {/* Category filter dropdown */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="input-field w-full sm:w-36"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === "all" ? "All Categories" : cat}
+                </option>
+              ))}
+            </select>
+
             <Button onClick={() => { setEditingItem(null); setShowForm(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Item
@@ -101,6 +122,7 @@ export const MenuManagement = ({
           </div>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">

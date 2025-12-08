@@ -6,10 +6,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Index from "./pages/Index";
 import Menu from "./pages/Menu";
-import Admin from "./pages/Admin";
+import AdminDashboard from "./pages/Admin";    // FIXED
 import SuperAdmin from "./pages/SuperAdmin";
 import Scanner from "./pages/Scanner";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/admin/Login";
+import Signup from "./pages/admin/Signup";
 
 const queryClient = new QueryClient();
 
@@ -22,8 +24,14 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+
+            {/* Login/Signup */}
+            <Route path="/admin/login" element={<Login />} />
+            <Route path="/admin/signup" element={<Signup />} />
+
+            {/* Dashboards */}
             <Route path="/menu" element={<Menu />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/scan" element={<Scanner />} />
             <Route path="*" element={<NotFound />} />
