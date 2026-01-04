@@ -15,7 +15,7 @@ const PlanModal = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-gray-200">
-                    <h2 className="font-bold text-xl">Edit Plan: {editingPlan?.name}</h2>
+                    <h2 className="font-bold text-xl">{editingPlan ? `Edit Plan: ${editingPlan?.name}` : 'Add New Plan'}</h2>
                 </div>
                 <div className="p-6">
                     <div className="space-y-4">

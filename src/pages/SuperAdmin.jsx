@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getPendingRestaurants, approveRestaurant as apiApproveRestaurant } from '@/api/restaurantApi';
+import { getPendingRestaurants, approveRestaurant as apiApproveRestaurant, getApprovedRestaurants, createRestaurant as apiCreateRestaurant, updateRestaurant as apiUpdateRestaurant, deleteRestaurant as apiDeleteRestaurant } from '@/api/restaurantApi';
+import { listPlans as apiListPlans, createPlan as apiCreatePlan, updatePlan as apiUpdatePlan, deletePlan as apiDeletePlan } from '@/api/subscriptionApi';
 import {
   LayoutDashboard,
   Building2,
@@ -45,21 +46,9 @@ const TABS = {
   SETTINGS: "settings"
 };
 
-// Mock data
-// default empty until fetched
-const mockRestaurants = [
-  { id: 1, name: "The Urban Kitchen", owner: "John Smith", email: "john@urban.com", phone: "+91 98765 43210", address: "123 MG Road, Mumbai", image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400", plan: "Pro", status: "active", orders: 1250, revenue: "₹3,45,000" },
-  { id: 2, name: "Pizza Paradise", owner: "Maria Garcia", email: "maria@pizza.com", phone: "+91 98765 43211", address: "456 Park Street, Delhi", image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400", plan: "Business", status: "active", orders: 2100, revenue: "₹5,20,000" },
-  { id: 3, name: "Spice Route", owner: "Raj Patel", email: "raj@spice.com", phone: "+91 98765 43212", address: "789 Brigade Road, Bangalore", image: "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=400", plan: "Starter", status: "trial", orders: 150, revenue: "₹25,000" },
-  { id: 4, name: "Sushi Master", owner: "Yuki Tanaka", email: "yuki@sushi.com", phone: "+91 98765 43213", address: "321 Linking Road, Mumbai", image: "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?w=400", plan: "Pro", status: "suspended", orders: 0, revenue: "₹0" },
-  { id: 5, name: "Burger Barn", owner: "Tom Wilson", email: "tom@burger.com", phone: "+91 98765 43214", address: "654 FC Road, Pune", image: "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400", plan: "Business", status: "active", orders: 1800, revenue: "₹4,50,000" },
-];
+const initialPlans = [];
+const mockRestaurants = [];
 
-const initialPlans = [
-  { id: 1, name: "Starter", price: "₹999", restaurants: 12, features: ["Basic Menu", "10 Tables", "Email Support"] },
-  { id: 2, name: "Pro", price: "₹2,499", restaurants: 45, features: ["Unlimited Menu", "50 Tables", "Priority Support", "Analytics"] },
-  { id: 3, name: "Business", price: "₹4,999", restaurants: 28, features: ["Everything in Pro", "Multi-location", "API Access", "Dedicated Manager"] },
-];
 
 const supportTickets = [
   { id: "TK001", restaurant: "Pizza Paradise", issue: "Payment gateway not working", status: "open", time: "2 hours ago" },
@@ -71,7 +60,8 @@ const supportTickets = [
 
 export default function SuperAdminPortal() {
   const [activeTab, setActiveTab] = useState(TABS.DASHBOARD);
-  const [restaurants, setRestaurants] = useState(mockRestaurants);
+  const [restaurants, setRestaurants] = useState([]); // approved restaurants
+  const [pendingRestaurants, setPendingRestaurants] = useState([]); // pending approval
   const [plans, setPlans] = useState(initialPlans);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,20 +92,22 @@ export default function SuperAdminPortal() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const toggleRestaurantStatus = (id) => {
-    setRestaurants(prev => prev.map(r => {
-      if (r.id === id) {
-        return { ...r, status: r.status === "active" ? "suspended" : "active" };
-      }
-      return r;
-    }));
+  const toggleRestaurantStatus = async (id) => {
+    try {
+      const target = restaurants.find(r => r.id === id || r._id === id);
+      if (!target) return;
+      const newStatus = target.status === 'active' ? 'suspended' : 'active';
+      await apiUpdateRestaurant(target._id || target.id, { status: newStatus });
+      setRestaurants(prev => prev.map(r => (r.id === id || r._id === id) ? { ...r, status: newStatus } : r));
+    } catch (e) {
+      console.error('Failed to toggle status', e);
+      alert('Failed to update status');
+    }
   };
 
-  const fetchPending = async () => {
+  const fetchApproved = async () => {
     try {
-      const pending = await getPendingRestaurants();
-      // pending may be an array
-      const list = Array.isArray(pending) ? pending : pending?.restaurants || [];
+      const list = await getApprovedRestaurants();
       const normalized = list.map(r => ({
         id: r._id || r.id,
         _id: r._id || r.id,
@@ -126,25 +118,63 @@ export default function SuperAdminPortal() {
         address: r.address || '',
         image: r.logo?.url || r.avatar?.url || r.image || '',
         plan: r.plan || 'N/A',
-        status: r.status || 'pending',
+        status: r.status || 'active',
         orders: r.orders || 0,
         revenue: r.revenue || '₹0'
       }));
       setRestaurants(normalized);
     } catch (e) {
+      console.error('Failed to fetch approved restaurants', e.message || e);
+    }
+  };
+
+  const fetchPending = async () => {
+    try {
+      const res = await getPendingRestaurants();
+      const list = Array.isArray(res) ? res : res || [];
+      const normalized = list.map(r => ({
+        id: r._id || r.id,
+        _id: r._id || r.id,
+        name: r.name,
+        owner: (r.owner && (r.owner.name || r.owner)) || '',
+        email: r.owner?.email || '',
+        phone: r.phone || '',
+        address: r.address || '',
+        image: r.logo?.url || r.avatar?.url || r.image || '',
+        plan: r.plan || 'N/A',
+        status: 'pending',
+        orders: r.orders || 0,
+        revenue: r.revenue || '₹0'
+      }));
+      setPendingRestaurants(normalized);
+    } catch (e) {
       console.error('Failed to fetch pending restaurants', e.message || e);
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const list = await apiListPlans();
+      const normalized = list.map(p => ({ id: p._id, name: p.name, price: `₹${p.price}`, features: p.features || [], raw: p }));
+      setPlans(normalized);
+    } catch (e) {
+      console.error('Failed to fetch plans', e.message || e);
+    }
+  };
+
   useEffect(() => {
+    fetchApproved();
     fetchPending();
+    fetchPlans();
   }, []);
 
   const approveRestaurant = async (id) => {
     if (!confirm('Approve this restaurant?')) return;
     try {
       await apiApproveRestaurant(id);
-      setRestaurants(prev => prev.filter(r => (r._id || r.id) !== id));
+      // refresh lists
+      await fetchPending();
+      await fetchApproved();
       alert('Restaurant approved.');
     } catch (e) {
       console.error(e);
@@ -172,30 +202,69 @@ export default function SuperAdminPortal() {
     setRestaurantModalOpen(true);
   };
 
-  const saveRestaurant = () => {
+  const saveRestaurant = async () => {
     if (!restaurantForm.name || !restaurantForm.owner) {
       alert("Please fill in required fields: Name and Owner");
       return;
     }
 
-    if (editingRestaurant) {
-      setRestaurants(prev => prev.map(r =>
-        r.id === editingRestaurant.id
-          ? { ...r, ...restaurantForm }
-          : r
-      ));
-      alert("Restaurant updated successfully!");
-    } else {
-      const newRestaurant = {
-        id: Math.max(...restaurants.map(r => r.id)) + 1,
-        ...restaurantForm,
-        status: "trial",
-        orders: 0,
-        revenue: "₹0"
-      };
-      setRestaurants(prev => [...prev, newRestaurant]);
-      alert("Restaurant added successfully!");
+    try {
+      if (editingRestaurant) {
+        const id = editingRestaurant._id || editingRestaurant.id;
+        const body = {
+          name: restaurantForm.name,
+          address: restaurantForm.address,
+          image: restaurantForm.image,
+          ownerName: restaurantForm.owner,
+          ownerEmail: restaurantForm.email,
+          phone: restaurantForm.phone,
+          plan: restaurantForm.plan
+        };
+        const updated = await apiUpdateRestaurant(id, body);
+        setRestaurants(prev => prev.map(r => (r._id === updated._id || r.id === updated._id) ? ({
+          id: updated._id,
+          _id: updated._id,
+          name: updated.name,
+          owner: updated.owner?.name || restaurantForm.owner,
+          email: updated.owner?.email || restaurantForm.email,
+          phone: updated.phone || restaurantForm.phone,
+          address: updated.address || restaurantForm.address,
+          image: updated.logo?.url || restaurantForm.image,
+          plan: updated.plan || restaurantForm.plan,
+          status: updated.status || r.status
+        }) : r));
+        alert('Restaurant updated successfully!');
+      } else {
+        const body = {
+          name: restaurantForm.name,
+          address: restaurantForm.address,
+          image: restaurantForm.image,
+          ownerName: restaurantForm.owner,
+          ownerEmail: restaurantForm.email,
+          phone: restaurantForm.phone,
+          plan: restaurantForm.plan
+        };
+        const created = await apiCreateRestaurant(body);
+        const normalized = {
+          id: created._id,
+          _id: created._id,
+          name: created.name,
+          owner: created.owner?.name || restaurantForm.owner,
+          email: created.owner?.email || restaurantForm.email,
+          phone: created.phone || restaurantForm.phone,
+          address: created.address || restaurantForm.address,
+          image: created.logo?.url || restaurantForm.image,
+          plan: created.plan || restaurantForm.plan,
+          status: created.status || 'approved'
+        };
+        setRestaurants(prev => [normalized, ...prev]);
+        alert('Restaurant added and approved successfully!');
+      }
+    } catch (e) {
+      console.error('Failed to save restaurant', e);
+      alert('Failed to save restaurant');
     }
+
     setRestaurantModalOpen(false);
   };
 
@@ -204,46 +273,78 @@ export default function SuperAdminPortal() {
     setDeleteModalOpen(true);
   };
 
+  const onDeletePlan = (plan) => {
+    setDeleteTarget({ type: 'plan', id: plan.id || plan._id || plan.raw?._id });
+    setDeleteModalOpen(true);
+  };
+
   // Plan CRUD
   const openPlanModal = (plan) => {
     setEditingPlan(plan);
     setPlanForm({
-      name: plan.name,
-      price: plan.price,
-      features: plan.features.join(", ")
+      name: plan?.name || '',
+      price: plan?.price || '',
+      features: plan?.features ? plan.features.join(", ") : ''
     });
     setPlanModalOpen(true);
   };
 
-  const savePlan = () => {
-    if (!planForm.name || !planForm.price || !editingPlan) {
+  const savePlan = async () => {
+    if (!planForm.name || !planForm.price) {
       alert("Please fill in all fields");
       return;
     }
 
-    setPlans(prev => prev.map(p =>
-      p.id === editingPlan.id
-        ? { ...p, name: planForm.name, price: planForm.price, features: planForm.features.split(",").map(f => f.trim()) }
-        : p
-    ));
+    try {
+      const priceNumber = Number(planForm.price.toString().replace(/[^0-9.]/g, '')) || 0;
+      const features = planForm.features.split(',').map(f => f.trim()).filter(Boolean);
+
+      if (editingPlan) {
+        const id = editingPlan.id || editingPlan._id || editingPlan.raw?._id;
+        const updated = await apiUpdatePlan(id, { name: planForm.name, price: priceNumber, features });
+        setPlans(prev => prev.map(p => (p.id === (updated._id || id) ? ({ ...p, name: updated.name, price: `₹${updated.price}`, features: updated.features || [] }) : p)));
+        alert('Plan updated successfully!');
+      } else {
+        const created = await apiCreatePlan({ name: planForm.name, price: priceNumber, features });
+        setPlans(prev => [{ id: created._id, name: created.name, price: `₹${created.price}`, features: created.features || [], raw: created }, ...prev]);
+        alert('Plan created successfully!');
+      }
+    } catch (e) {
+      console.error('Failed to save plan', e);
+      alert('Failed to save plan');
+    }
+
     setPlanModalOpen(false);
-    alert("Plan updated successfully!");
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
 
-    if (deleteTarget.type === "restaurant") {
-      setRestaurants(prev => prev.filter(r => r.id !== deleteTarget.id));
-      alert("Restaurant deleted successfully!");
+    try {
+      if (deleteTarget.type === "restaurant") {
+        await apiDeleteRestaurant(deleteTarget.id);
+        setRestaurants(prev => prev.filter(r => (r.id !== deleteTarget.id && r._id !== deleteTarget.id)));
+        setPendingRestaurants(prev => prev.filter(r => (r.id !== deleteTarget.id && r._id !== deleteTarget.id)));
+        alert("Restaurant deleted successfully!");
+      }
+
+      if (deleteTarget.type === 'plan') {
+        await apiDeletePlan(deleteTarget.id);
+        setPlans(prev => prev.filter(p => p.id !== deleteTarget.id));
+        alert('Plan deleted successfully!');
+      }
+    } catch (e) {
+      console.error('Failed to delete', e);
+      alert('Delete failed');
     }
+
     setDeleteModalOpen(false);
     setDeleteTarget(null);
   };
 
   const navItems = [
     { id: TABS.DASHBOARD, label: "Dashboard", icon: LayoutDashboard },
-    { id: TABS.RESTAURANTS, label: "Restaurants", icon: Building2, badge: restaurants.length },
+    { id: TABS.RESTAURANTS, label: "Restaurants", icon: Building2, badge: pendingRestaurants.length },
     { id: TABS.SUBSCRIPTIONS, label: "Subscriptions", icon: CreditCard },
     { id: TABS.BILLING, label: "Billing", icon: DollarSign },
     { id: TABS.ANALYTICS, label: "Analytics", icon: BarChart3 },
@@ -258,7 +359,12 @@ export default function SuperAdminPortal() {
     { label: "Total Orders", value: "1.2M", change: "+25%", icon: TrendingUp },
   ];
 
-  const filteredRestaurants = restaurants.filter(r =>
+  const filteredApproved = restaurants.filter(r =>
+    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.owner.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredPending = pendingRestaurants.filter(r =>
     r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.owner.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -283,7 +389,8 @@ export default function SuperAdminPortal() {
 
           {activeTab === TABS.RESTAURANTS && (
             <RestaurantsContent
-              restaurants={filteredRestaurants}
+              pendingRestaurants={filteredPending}
+              restaurants={filteredApproved}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               openRestaurantModal={openRestaurantModal}
@@ -294,7 +401,7 @@ export default function SuperAdminPortal() {
           )}
 
           {activeTab === TABS.SUBSCRIPTIONS && (
-            <SubscriptionsContent plans={plans} openPlanModal={openPlanModal} />
+            <SubscriptionsContent plans={plans} openPlanModal={openPlanModal} onDeletePlan={onDeletePlan} />
           )}
 
           {activeTab === TABS.BILLING && (
