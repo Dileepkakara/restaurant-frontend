@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, MapPin, Upload, Image } from "lucide-react";
+import { Eye, EyeOff, MapPin, Upload, Image, Phone } from "lucide-react";
 import { register as apiRegister } from '@/api/authApi';
+import { listPlans } from '@/api/subscriptionApi';
 
 // Using real backend API for registration. Local demo storage removed.
 
@@ -10,17 +11,32 @@ const Signup = () => {
   const navigate = useNavigate();
 
   const [role, setRole] = useState("admin");
+  const [plans, setPlans] = useState([]);
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     location: "",
     imageUrl: "",
-    restaurantName: ""
+    restaurantName: "",
+    phoneNumber: "",
+    subscriptionPlan: ""
   });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [uploadedImage, setUploadedImage] = useState("");  const [uploadedFile, setUploadedFile] = useState(null);  const [autoLocation, setAutoLocation] = useState("");
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await listPlans();
+        setPlans(response || []);
+      } catch (error) {
+        console.error('Failed to fetch plans:', error);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -79,6 +95,8 @@ const Signup = () => {
       payload.append('role', role);
       payload.append('location', form.location || '');
       payload.append('restaurantName', form.restaurantName || '');
+      payload.append('phoneNumber', form.phoneNumber || '');
+      payload.append('subscriptionPlan', form.subscriptionPlan || '');
 
       if (uploadedFile) {
         payload.append('avatar', uploadedFile);
@@ -207,101 +225,148 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Location Section */}
-          <div className="border-t pt-6">
-            <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-              <MapPin size={16} />
-              Restaurant Location
-            </label>
-            <div className="space-y-3">
-              <input
-                type="text"
-                name="location"
-                value={form.location}
-                onChange={handleChange}
-                className="input-field w-full"
-                placeholder="Enter restaurant address or location"
-              />
-              <button
-                type="button"
-                onClick={getCurrentLocation}
-                className="flex items-center gap-2 px-4 py-2 bg-secondary/10 hover:bg-secondary/20 rounded transition-colors text-sm w-full justify-center"
-              >
-                <MapPin size={16} />
-                Detect Current Location Automatically
-              </button>
-              {autoLocation && (
-                <div className="text-xs bg-muted/30 p-3 rounded flex items-start gap-2">
-                  <MapPin size={12} className="mt-0.5" />
-                  <div>
-                    <p className="font-medium">Detected Location:</p>
-                    <p className="text-muted-foreground">{autoLocation}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Image Upload Section */}
-          <div className="border-t pt-6">
-            <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-              <Image size={16} />
-              Restaurant Logo / Profile Image
-            </label>
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Option 1: Enter URL</p>
-                  <input
-                    type="text"
-                    name="imageUrl"
-                    value={form.imageUrl}
-                    onChange={handleChange}
-                    className="input-field w-full"
-                    placeholder="https://example.com/logo.png"
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Option 2: Upload File</p>
-                  <label className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 rounded transition-colors cursor-pointer justify-center">
-                    <Upload size={16} />
-                    Choose Image File
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+          {/* Admin-specific fields */}
+          {role === "admin" && (
+            <>
+              {/* Restaurant Phone Number */}
+              <div>
+                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                  <Phone size={16} />
+                  Restaurant Phone Number
+                </label>
+                <input
+                  name="phoneNumber"
+                  type="tel"
+                  value={form.phoneNumber}
+                  onChange={handleChange}
+                  className="input-field w-full"
+                  placeholder="+1 (555) 123-4567"
+                />
               </div>
 
-              {/* Image Preview */}
-              {(form.imageUrl || uploadedImage) && (
-                <div className="mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">Preview:</p>
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 border rounded-lg overflow-hidden bg-muted/30">
-                      <img
-                        src={uploadedImage || form.imageUrl}
-                        alt="Profile preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-muted-foreground">Invalid Image</div>';
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm">Image will be saved with your profile</p>
-                      <p className="text-xs text-muted-foreground">Max size: 5MB, Formats: JPG, PNG, WebP</p>
+              {/* Subscription Plan */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Subscription Plan *</label>
+                <select
+                  name="subscriptionPlan"
+                  value={form.subscriptionPlan}
+                  onChange={handleChange}
+                  className="input-field w-full"
+                  required
+                >
+                  <option value="">Select a plan</option>
+                  {plans.map((plan) => (
+                    <option key={plan._id} value={plan._id}>
+                      {plan.name} - ₹{plan.price}/month
+                    </option>
+                  ))}
+                </select>
+                {plans.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">Loading plans...</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Location Section - Only for Admin */}
+          {role === "admin" && (
+            <div className="border-t pt-6">
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <MapPin size={16} />
+                Restaurant Location
+              </label>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  name="location"
+                  value={form.location}
+                  onChange={handleChange}
+                  className="input-field w-full"
+                  placeholder="Enter restaurant address or location"
+                />
+                <button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  className="flex items-center gap-2 px-4 py-2 bg-secondary/10 hover:bg-secondary/20 rounded transition-colors text-sm w-full justify-center"
+                >
+                  <MapPin size={16} />
+                  Detect Current Location Automatically
+                </button>
+                {autoLocation && (
+                  <div className="text-xs bg-muted/30 p-3 rounded flex items-start gap-2">
+                    <MapPin size={12} className="mt-0.5" />
+                    <div>
+                      <p className="font-medium">Detected Location:</p>
+                      <p className="text-muted-foreground">{autoLocation}</p>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Image Upload Section - Only for Admin */}
+          {role === "admin" && (
+            <div className="border-t pt-6">
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <Image size={16} />
+                Restaurant Logo / Profile Image
+              </label>
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Option 1: Enter URL</p>
+                    <input
+                      type="text"
+                      name="imageUrl"
+                      value={form.imageUrl}
+                      onChange={handleChange}
+                      className="input-field w-full"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Option 2: Upload File</p>
+                    <label className="flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 rounded transition-colors cursor-pointer justify-center">
+                      <Upload size={16} />
+                      Choose Image File
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Image Preview */}
+                {(form.imageUrl || uploadedImage) && (
+                  <div className="mt-3">
+                    <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 border rounded-lg overflow-hidden bg-muted/30">
+                        <img
+                          src={uploadedImage || form.imageUrl}
+                          alt="Profile preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-muted-foreground">Invalid Image</div>';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm">Image will be saved with your profile</p>
+                        <p className="text-xs text-muted-foreground">Max size: 5MB, Formats: JPG, PNG, WebP</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

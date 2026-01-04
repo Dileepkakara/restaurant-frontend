@@ -352,11 +352,32 @@ export default function SuperAdminPortal() {
     { id: TABS.SETTINGS, label: "Settings", icon: Settings },
   ];
 
+  // Dynamic stats calculation
   const stats = [
-    { label: "Total Restaurants", value: "2,547", change: "+15%", icon: Building2 },
-    { label: "Active Users", value: "45.2K", change: "+22%", icon: Users },
-    { label: "Monthly Revenue", value: "₹45.6L", change: "+18%", icon: DollarSign },
-    { label: "Total Orders", value: "1.2M", change: "+25%", icon: TrendingUp },
+    { 
+      label: "Total Restaurants", 
+      value: restaurants.length.toString(), 
+      change: "+15%", 
+      icon: Building2 
+    },
+    { 
+      label: "Pending Approvals", 
+      value: pendingRestaurants.length.toString(), 
+      change: pendingRestaurants.length > 0 ? "Needs attention" : "All clear", 
+      icon: Users 
+    },
+    { 
+      label: "Active Plans", 
+      value: plans.length.toString(), 
+      change: "+5%", 
+      icon: DollarSign 
+    },
+    { 
+      label: "Total Revenue", 
+      value: "₹0", // You can calculate this from actual billing data
+      change: "+0%", 
+      icon: TrendingUp 
+    },
   ];
 
   const filteredApproved = restaurants.filter(r =>
@@ -384,7 +405,7 @@ export default function SuperAdminPortal() {
 
         <div className="p-6">
           {activeTab === TABS.DASHBOARD && (
-            <DashboardContent stats={stats} restaurants={restaurants} />
+            <DashboardContent stats={stats} restaurants={restaurants} pendingRestaurants={pendingRestaurants} />
           )}
 
           {activeTab === TABS.RESTAURANTS && (

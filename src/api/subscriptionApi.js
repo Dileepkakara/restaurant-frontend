@@ -1,6 +1,10 @@
 import api from './apiClient';
 
 export async function listPlans() {
+  return api.get('/api/subscriptions/public');
+}
+
+export async function listPlansAdmin() {
   return api.get('/api/subscriptions');
 }
 
@@ -16,4 +20,4 @@ export async function deletePlan(id) {
   return api.delete(`/api/subscriptions/${id}`);
 }
 
-export default { listPlans, createPlan, updatePlan, deletePlan };
+export default { listPlans, listPlansAdmin, createPlan, updatePlan, deletePlan };

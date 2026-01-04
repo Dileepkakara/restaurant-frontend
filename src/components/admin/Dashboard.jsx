@@ -19,6 +19,13 @@ const stats = [
     { label: "Avg Order Time", value: "18 min", change: "-2 min", icon: Clock, color: "bg-gold" },
 ];
 
+const orders = [
+    { id: "#ORD-001", table: "Table 5", items: "Margherita Pizza, Garlic Bread", amount: "₹598", time: "2 min ago", status: "Preparing" },
+    { id: "#ORD-002", table: "Table 3", items: "Fettuccine Alfredo, Caesar Salad", amount: "₹628", time: "5 min ago", status: "Ready" },
+    { id: "#ORD-003", table: "Table 7", items: "BBQ Chicken Pizza", amount: "₹459", time: "8 min ago", status: "Pending" },
+    { id: "#ORD-004", table: "Table 2", items: "Grilled Chicken Salad, Chocolate Brownie", amount: "₹478", time: "12 min ago", status: "Preparing" },
+];
+
 const topSellingItems = [
     {
         id: 1,
@@ -52,7 +59,6 @@ const topSellingItems = [
         image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=80&h=80&fit=crop&crop=center", // Pizza
         growth: "+5%"
     },
-
     {
         id: 5,
         name: "Chocolate Brownie",
@@ -84,11 +90,21 @@ const getFallbackColor = (name) => {
     return colors[index];
 };
 
-export const Dashboard = ({ orders, onViewTopSelling, onViewAllOrders }) => {
+const Dashboard = () => {
+    const onViewAllOrders = () => {
+        // Navigate to orders page
+        console.log("View all orders");
+    };
+
+    const onViewTopSelling = () => {
+        // Navigate to menu management
+        console.log("View top selling items");
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="font-display text-2xl sm:text-3xl font-bold">Dashboard</h1>
                     <p className="text-muted-foreground text-sm sm:text-base">Welcome back, Spice Garden Admin</p>
@@ -345,3 +361,5 @@ export const Dashboard = ({ orders, onViewTopSelling, onViewAllOrders }) => {
         </div>
     );
 };
+
+export default Dashboard;

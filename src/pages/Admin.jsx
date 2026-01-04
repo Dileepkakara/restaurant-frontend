@@ -1,5 +1,5 @@
 // Admin.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,13 +15,17 @@ import {
   Menu,
   X,
   QrCode,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { menuItems as initialMenuItems } from "@/data/menuData";
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { TableManagement } from "@/components/admin/TableManagement";
-import { Dashboard } from "@/components/admin/Dashboard";
+import Dashboard from "@/components/admin/Dashboard";
 import { LiveOrders } from "@/components/admin/LiveOrders";
+import * as menuApi from "@/api/menuApi";
+import * as tableApi from "@/api/tableApi";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
@@ -105,47 +109,207 @@ const initialTables = [
 const Admin = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [menuItemsList, setMenuItemsList] = useState(initialMenuItems);
-  const [tables, setTables] = useState(initialTables);
+  const [menuItemsList, setMenuItemsList] = useState([]);
+  const [tables, setTables] = useState([]);
   const [orders, setOrders] = useState(initialOrders);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Get restaurant ID from localStorage (assuming user data is stored there)
+  const getRestaurantId = () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('rb_user') || '{}');
+      return userData.restaurant?._id;
+    } catch {
+      return null;
+    }
+  };
+
+  // Load menu items from API
+  const loadMenuItems = async () => {
+    const restaurantId = getRestaurantId();
+    if (!restaurantId) {
+      setError('Restaurant not found. Please login again.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await menuApi.getMenuItems(restaurantId);
+      setMenuItemsList(items);
+    } catch (err) {
+      setError(err.message || 'Failed to load menu items');
+      console.error('Error loading menu items:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load tables from API
+  const loadTables = async () => {
+    const restaurantId = getRestaurantId();
+    if (!restaurantId) {
+      setError('Restaurant not found. Please login again.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const tablesData = await tableApi.getTables(restaurantId);
+      setTables(tablesData);
+    } catch (err) {
+      setError(err.message || 'Failed to load tables');
+      console.error('Error loading tables:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load user data on component mount
+  useEffect(() => {
+    const userData = localStorage.getItem('rb_user');
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Load menu items on component mount
+  useEffect(() => {
+    if (activeTab === 'menu') {
+      loadMenuItems();
+    }
+  }, [activeTab]);
+
+  // Load tables when tables tab is active
+  useEffect(() => {
+    if (activeTab === 'tables') {
+      loadTables();
+    }
+  }, [activeTab]);
 
   // Menu CRUD operations
-  const handleAddMenuItem = (item) => {
-    const newItem = {
-      ...item,
-      id: Date.now().toString(),
-    };
-    setMenuItemsList((prev) => [...prev, newItem]);
+  const handleAddMenuItem = async (item) => {
+    const restaurantId = getRestaurantId();
+    if (!restaurantId) {
+      setError('Restaurant not found. Please login again.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const newItem = await menuApi.createMenuItem(restaurantId, item);
+      setMenuItemsList((prev) => [...prev, newItem]);
+    } catch (err) {
+      setError(err.message || 'Failed to add menu item');
+      console.error('Error adding menu item:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdateMenuItem = (item) => {
-    setMenuItemsList((prev) =>
-      prev.map((i) => (i.id === item.id ? item : i))
-    );
+  const handleUpdateMenuItem = async (item) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedItem = await menuApi.updateMenuItem(item._id || item.id, item);
+      setMenuItemsList((prev) =>
+        prev.map((i) => (i._id === updatedItem._id ? updatedItem : i))
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to update menu item');
+      console.error('Error updating menu item:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteMenuItem = (id) => {
-    setMenuItemsList((prev) => prev.filter((i) => i.id !== id));
+  const handleDeleteMenuItem = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await menuApi.deleteMenuItem(id);
+      setMenuItemsList((prev) => prev.filter((i) => i._id !== id));
+    } catch (err) {
+      setError(err.message || 'Failed to delete menu item');
+      console.error('Error deleting menu item:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Table CRUD operations
-  const handleAddTable = (table) => {
-    const newTable = {
-      ...table,
-      id: Date.now().toString(),
-      qrCode: `${window.location.origin}/menu?table=${table.number}`,
-    };
-    setTables((prev) => [...prev, newTable]);
+  const handleAddTable = async (table) => {
+    const restaurantId = getRestaurantId();
+    if (!restaurantId) {
+      setError('Restaurant not found. Please login again.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const newTable = await tableApi.createTable(restaurantId, table);
+      setTables((prev) => [...prev, newTable]);
+    } catch (err) {
+      setError(err.message || 'Failed to add table');
+      console.error('Error adding table:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdateTable = (table) => {
-    setTables((prev) =>
-      prev.map((t) => (t.id === table.id ? { ...table, qrCode: `${window.location.origin}/menu?table=${table.number}` } : t))
-    );
+  const handleUpdateTable = async (table) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedTable = await tableApi.updateTable(table._id || table.id, table);
+      setTables((prev) =>
+        prev.map((t) => (t._id === updatedTable._id ? updatedTable : t))
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to update table');
+      console.error('Error updating table:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteTable = (id) => {
-    setTables((prev) => prev.filter((t) => t.id !== id));
+  const handleDeleteTable = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await tableApi.deleteTable(id);
+      setTables((prev) => prev.filter((t) => t._id !== id));
+    } catch (err) {
+      setError(err.message || 'Failed to delete table');
+      console.error('Error deleting table:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Order actions
@@ -172,6 +336,18 @@ const Admin = () => {
       }
       return order;
     }));
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('rb_token');
+    localStorage.removeItem('rb_user');
+    window.location.href = '/admin/login';
+  };
+
+  // Get user initials
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'AD';
   };
 
   const handleSidebarClick = (id) => {
@@ -251,8 +427,46 @@ const Admin = () => {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
               </button>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-xs sm:text-sm font-semibold text-primary">JD</span>
+
+              {/* User Profile Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs sm:text-sm font-semibold text-primary">
+                      {getInitials(user?.name)}
+                    </span>
+                  </div>
+                  <div className="hidden md:flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {user?.name || 'Restaurant Admin'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border py-1 z-50">
+                    <div className="px-4 py-2 border-b border-border">
+                      <p className="text-sm font-medium text-foreground">
+                        {user?.name || 'Restaurant Admin'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {user?.email || 'admin@example.com'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -261,7 +475,7 @@ const Admin = () => {
         {/* Content */}
         <main className="p-4 lg:p-8">
           {activeTab === "dashboard" && (
-            <Dashboard orders={orders} />
+            <Dashboard orders={orders} menuItems={menuItemsList} />
           )}
 
           {activeTab === "orders" && (
@@ -272,21 +486,51 @@ const Admin = () => {
           )}
 
           {activeTab === "menu" && (
-            <MenuManagement
-              items={menuItemsList}
-              onAddItem={handleAddMenuItem}
-              onUpdateItem={handleUpdateMenuItem}
-              onDeleteItem={handleDeleteMenuItem}
-            />
+            <div>
+              {error && (
+                <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                  {error}
+                </div>
+              )}
+              {loading && (
+                <div className="mb-4 p-4 bg-muted rounded-lg text-center">
+                  Loading menu items...
+                </div>
+              )}
+              <MenuManagement
+                items={menuItemsList.map(item => ({
+                  ...item,
+                  id: item._id || item.id // Normalize ID for frontend compatibility
+                }))}
+                onAddItem={handleAddMenuItem}
+                onUpdateItem={handleUpdateMenuItem}
+                onDeleteItem={handleDeleteMenuItem}
+              />
+            </div>
           )}
 
           {activeTab === "tables" && (
-            <TableManagement
-              tables={tables}
-              onAddTable={handleAddTable}
-              onUpdateTable={handleUpdateTable}
-              onDeleteTable={handleDeleteTable}
-            />
+            <div>
+              {error && (
+                <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                  {error}
+                </div>
+              )}
+              {loading && (
+                <div className="mb-4 p-4 bg-muted rounded-lg text-center">
+                  Loading tables...
+                </div>
+              )}
+              <TableManagement
+                tables={tables.map(table => ({
+                  ...table,
+                  id: table._id || table.id // Normalize ID for frontend compatibility
+                }))}
+                onAddTable={handleAddTable}
+                onUpdateTable={handleUpdateTable}
+                onDeleteTable={handleDeleteTable}
+              />
+            </div>
           )}
 
           {activeTab !== "dashboard" && activeTab !== "orders" && activeTab !== "menu" && activeTab !== "tables" && (
