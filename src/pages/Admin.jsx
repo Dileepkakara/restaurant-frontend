@@ -26,6 +26,7 @@ import Dashboard from "@/components/admin/Dashboard";
 import { LiveOrders } from "@/components/admin/LiveOrders";
 import * as menuApi from "@/api/menuApi";
 import * as tableApi from "@/api/tableApi";
+import * as orderApi from "@/api/orderApi";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
@@ -113,6 +114,7 @@ const Admin = () => {
   const [tables, setTables] = useState([]);
   const [orders, setOrders] = useState(initialOrders);
   const [loading, setLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -122,17 +124,41 @@ const Admin = () => {
   const getRestaurantId = () => {
     try {
       const userData = JSON.parse(localStorage.getItem('rb_user') || '{}');
-      return userData.restaurant?._id;
+      const restaurant = userData.restaurant;
+      if (!restaurant) {
+        // Fallback: if no restaurant assigned, use the default seeded restaurant
+        console.warn('No restaurant assigned to user, using default restaurant');
+        return '6748b8f8e4b0a1b2c3d4e5f6'; // Default seeded restaurant ID
+      }
+
+      // Handle both cases: restaurant as ObjectId string or as populated object
+      if (typeof restaurant === 'string') {
+        return restaurant;
+      } else if (restaurant && restaurant._id) {
+        return restaurant._id;
+      }
+      return null;
     } catch {
       return null;
     }
+  };
+
+  // Get relative time string
+  const getRelativeTime = (date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return `${diffInSeconds} sec ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hr ago`;
+    return `${Math.floor(diffInSeconds / 86400)} days ago`;
   };
 
   // Load menu items from API
   const loadMenuItems = async () => {
     const restaurantId = getRestaurantId();
     if (!restaurantId) {
-      setError('Restaurant not found. Please login again.');
+      setError('No restaurant assigned to your account. Please contact support or try logging in again.');
       return;
     }
 
@@ -153,7 +179,7 @@ const Admin = () => {
   const loadTables = async () => {
     const restaurantId = getRestaurantId();
     if (!restaurantId) {
-      setError('Restaurant not found. Please login again.');
+      setError('No restaurant assigned to your account. Please contact support or try logging in again.');
       return;
     }
 
@@ -167,6 +193,36 @@ const Admin = () => {
       console.error('Error loading tables:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load orders from API
+  const loadOrders = async () => {
+    const restaurantId = getRestaurantId();
+    if (!restaurantId) {
+      setError('No restaurant assigned to your account. Please contact support or try logging in again.');
+      return;
+    }
+
+    setOrdersLoading(true);
+    setError(null);
+    try {
+      const ordersData = await orderApi.getOrders(restaurantId);
+      // Transform backend data to match frontend format
+      const transformedOrders = ordersData.map(order => ({
+        id: order._id,
+        table: `Table ${order.table.tableNumber}`,
+        items: order.items.map(item => `${item.menuItem.name} x${item.quantity}`).join(', '),
+        amount: `₹${order.totalAmount}`,
+        time: getRelativeTime(new Date(order.createdAt)),
+        status: order.status
+      }));
+      setOrders(transformedOrders);
+    } catch (err) {
+      setError(err.message || 'Failed to load orders');
+      console.error('Error loading orders:', err);
+    } finally {
+      setOrdersLoading(false);
     }
   };
 
@@ -210,11 +266,18 @@ const Admin = () => {
     }
   }, [activeTab]);
 
+  // Load orders when orders tab is active
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders();
+    }
+  }, [activeTab]);
+
   // Menu CRUD operations
   const handleAddMenuItem = async (item) => {
     const restaurantId = getRestaurantId();
     if (!restaurantId) {
-      setError('Restaurant not found. Please login again.');
+      setError('No restaurant assigned to your account. Please contact support or try logging in again.');
       return;
     }
 
@@ -265,7 +328,7 @@ const Admin = () => {
   const handleAddTable = async (table) => {
     const restaurantId = getRestaurantId();
     if (!restaurantId) {
-      setError('Restaurant not found. Please login again.');
+      setError('No restaurant assigned to your account. Please contact support or try logging in again.');
       return;
     }
 
@@ -313,29 +376,36 @@ const Admin = () => {
   };
 
   // Order actions
-  const handleOrderAction = (orderId, action) => {
-    setOrders(prev => prev.map(order => {
-      if (order.id === orderId) {
-        let newStatus = order.status;
+  const handleOrderAction = async (orderId, action) => {
+    let newStatus = '';
 
-        switch (action) {
-          case "Accept":
-            newStatus = "Preparing";
-            break;
-          case "Mark Ready":
-            newStatus = "Ready";
-            break;
-          case "Complete":
-            newStatus = "Completed";
-            break;
-          default:
-            break;
+    switch (action) {
+      case "Accept":
+        newStatus = "Preparing";
+        break;
+      case "Mark Ready":
+        newStatus = "Ready";
+        break;
+      case "Complete":
+        newStatus = "Completed";
+        break;
+      default:
+        return;
+    }
+
+    try {
+      await orderApi.updateOrderStatus(orderId, { status: newStatus });
+      // Update local state after successful API call
+      setOrders(prev => prev.map(order => {
+        if (order.id === orderId) {
+          return { ...order, status: newStatus };
         }
-
-        return { ...order, status: newStatus };
-      }
-      return order;
-    }));
+        return order;
+      }));
+    } catch (err) {
+      setError(err.message || 'Failed to update order status');
+      console.error('Error updating order status:', err);
+    }
   };
 
   // Logout handler
@@ -482,6 +552,8 @@ const Admin = () => {
             <LiveOrders
               orders={orders}
               onOrderAction={handleOrderAction}
+              onRefresh={loadOrders}
+              loading={ordersLoading}
             />
           )}
 

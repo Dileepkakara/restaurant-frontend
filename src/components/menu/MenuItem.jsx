@@ -46,7 +46,7 @@ export const MenuItem = ({ item, onAddToCart, onUpdateQty, onRemove }) => {
         {/* Badges overlay */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1">
           {item.hasOffer && <Badge variant="offer">{item.offerLabel}</Badge>}
-          {item.isNew && <Badge variant="gold">New</Badge>}
+          {item.isNewArrival && <Badge variant="gold">New</Badge>}
           {item.isTodaySpecial && !item.hasOffer && (
             <Badge variant="warning">Today&apos;s Special</Badge>
           )}

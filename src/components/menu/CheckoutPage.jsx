@@ -1,10 +1,61 @@
 // src/pages/CheckoutPage.jsx
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import * as customerApi from "@/api/customerApi";
 
 const CheckoutPage = () => {
+  const navigate = useNavigate();
   const [orderType, setOrderType] = useState("dinein");
   const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Load cart items from localStorage
+    const savedCart = localStorage.getItem('customer_cart');
+    if (savedCart) {
+      setCartItems(JSON.parse(savedCart));
+    }
+  }, []);
+
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = Math.round(subtotal * 0.05); // 5% tax
+  const total = subtotal + tax;
+
+  const placeOrder = async () => {
+    if (cartItems.length === 0) return;
+
+    setLoading(true);
+    try {
+      // Get restaurant and table IDs from localStorage or URL params
+      const restaurantId = localStorage.getItem('current_restaurant_id') || '6748b8f8e4b0a1b2c3d4e5f6';
+      const tableId = localStorage.getItem('current_table_id');
+
+      const orderData = {
+        table: tableId,
+        items: cartItems.map(item => ({
+          menuItem: item._id || item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        orderType,
+        paymentMethod
+      };
+
+      const result = await customerApi.createOrder(restaurantId, orderData);
+
+      // Clear cart
+      localStorage.removeItem('customer_cart');
+
+      // Navigate to order tracking
+      navigate(`/order?orderId=${result.orderId}`);
+    } catch (error) {
+      console.error('Error placing order:', error);
+      alert('Failed to place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[hsl(30_25%_98%)] flex justify-center px-3 py-6 md:py-10">
@@ -29,11 +80,10 @@ const CheckoutPage = () => {
               {/* DINE IN */}
               <button
                 onClick={() => setOrderType("dinein")}
-                className={`flex flex-col items-center justify-center rounded-2xl border px-3 py-3 text-xs md:text-sm font-medium transition ${
-                  orderType === "dinein"
+                className={`flex flex-col items-center justify-center rounded-2xl border px-3 py-3 text-xs md:text-sm font-medium transition ${orderType === "dinein"
                     ? "border-orange-400 bg-white text-orange-500 shadow-sm"
                     : "border-gray-200 bg-transparent text-gray-600"
-                }`}
+                  }`}
               >
                 <span className="text-xl md:text-2xl mb-1">🍽️</span>
                 <span>Dine In</span>
@@ -42,11 +92,10 @@ const CheckoutPage = () => {
               {/* TAKEAWAY */}
               <button
                 onClick={() => setOrderType("takeaway")}
-                className={`flex flex-col items-center justify-center rounded-2xl border px-3 py-3 text-xs md:text-sm font-medium transition ${
-                  orderType === "takeaway"
+                className={`flex flex-col items-center justify-center rounded-2xl border px-3 py-3 text-xs md:text-sm font-medium transition ${orderType === "takeaway"
                     ? "border-orange-400 bg-white text-orange-500 shadow-sm"
                     : "border-gray-200 bg-transparent text-gray-600"
-                }`}
+                  }`}
               >
                 <span className="text-xl md:text-2xl mb-1">🛍️</span>
                 <span>Takeaway</span>
@@ -64,66 +113,60 @@ const CheckoutPage = () => {
               {/* UPI */}
               <button
                 onClick={() => setPaymentMethod("upi")}
-                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${
-                  paymentMethod === "upi"
+                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${paymentMethod === "upi"
                     ? "border-orange-400 bg-white text-orange-500 shadow-sm"
                     : "border-gray-200 bg-white text-gray-700"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg md:text-xl">📱</span>
                   <span>UPI / Google Pay</span>
                 </div>
                 <span
-                  className={`w-4 h-4 rounded-full border-2 ${
-                    paymentMethod === "upi"
+                  className={`w-4 h-4 rounded-full border-2 ${paymentMethod === "upi"
                       ? "border-orange-500 bg-orange-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
               </button>
 
               {/* CARD */}
               <button
                 onClick={() => setPaymentMethod("card")}
-                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${
-                  paymentMethod === "card"
+                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${paymentMethod === "card"
                     ? "border-orange-400 bg-white text-orange-500 shadow-sm"
                     : "border-gray-200 bg-white text-gray-700"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg md:text-xl">💳</span>
                   <span>Credit / Debit Card</span>
                 </div>
                 <span
-                  className={`w-4 h-4 rounded-full border-2 ${
-                    paymentMethod === "card"
+                  className={`w-4 h-4 rounded-full border-2 ${paymentMethod === "card"
                       ? "border-orange-500 bg-orange-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
               </button>
 
               {/* COD */}
               <button
                 onClick={() => setPaymentMethod("cod")}
-                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${
-                  paymentMethod === "cod"
+                className={`w-full flex items-center justify-between rounded-2xl border px-3 py-3 text-sm md:text-base transition ${paymentMethod === "cod"
                     ? "border-orange-400 bg-white text-orange-500 shadow-sm"
                     : "border-gray-200 bg-white text-gray-700"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg md:text-xl">💵</span>
                   <span>Cash on Delivery</span>
                 </div>
                 <span
-                  className={`w-4 h-4 rounded-full border-2 ${
-                    paymentMethod === "cod"
+                  className={`w-4 h-4 rounded-full border-2 ${paymentMethod === "cod"
                       ? "border-orange-500 bg-orange-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
               </button>
             </div>
@@ -136,21 +179,23 @@ const CheckoutPage = () => {
             </h2>
 
             <div className="bg-white rounded-2xl border border-gray-100 divide-y text-sm md:text-base">
-              <div className="flex justify-between items-center px-3 py-3">
-                <span>Margherita Pizza x1</span>
-                <span className="font-medium">₹399</span>
-              </div>
+              {cartItems.map((item, index) => (
+                <div key={item.id} className="flex justify-between items-center px-3 py-3">
+                  <span>{item.name} x{item.quantity}</span>
+                  <span className="font-medium">₹{item.price * item.quantity}</span>
+                </div>
+              ))}
               <div className="px-3 py-2 flex justify-between text-gray-500">
                 <span>Subtotal</span>
-                <span>₹399</span>
+                <span>₹{subtotal}</span>
               </div>
               <div className="px-3 py-2 flex justify-between text-gray-500">
                 <span>Taxes</span>
-                <span>₹20</span>
+                <span>₹{tax}</span>
               </div>
               <div className="px-3 py-3 flex justify-between font-semibold">
                 <span>Total</span>
-                <span>₹419</span>
+                <span>₹{total}</span>
               </div>
             </div>
           </section>
@@ -158,11 +203,13 @@ const CheckoutPage = () => {
 
         {/* Bottom Action */}
         <footer className="px-4 pb-5 pt-2 md:pb-6">
-            <Link to="/order">
-          <button className="w-full rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 md:py-4 text-sm md:text-base shadow-md">
-            Place Order · ₹419
+          <button
+            onClick={placeOrder}
+            disabled={loading || cartItems.length === 0}
+            className="w-full rounded-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white font-semibold py-3 md:py-4 text-sm md:text-base shadow-md disabled:cursor-not-allowed"
+          >
+            {loading ? 'Placing Order...' : `Place Order · ₹${total}`}
           </button>
-          </Link>
         </footer>
       </div>
     </div>
