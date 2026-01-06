@@ -211,8 +211,11 @@ const Admin = () => {
       // Transform backend data to match frontend format
       const transformedOrders = ordersData.map(order => ({
         id: order._id,
-        table: `Table ${order.table.tableNumber}`,
-        items: order.items.map(item => `${item.menuItem.name} x${item.quantity}`).join(', '),
+        table: order.table ? `Table ${order.table.tableNumber}` : 'Unknown Table',
+        items: order.items.map(item => {
+          const itemName = item.menuItem ? item.menuItem.name : 'Unknown Item';
+          return `${itemName} x${item.quantity}`;
+        }).join(', '),
         amount: `₹${order.totalAmount}`,
         time: getRelativeTime(new Date(order.createdAt)),
         status: order.status
