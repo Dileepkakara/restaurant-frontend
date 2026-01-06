@@ -72,52 +72,64 @@ export const LiveOrders = ({ orders, onOrderAction, onRefresh, loading }) => {
 
           {/* Orders Table */}
           <div className="bg-card border border-border rounded-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Order ID</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Table ID</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Items</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Amount</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Time</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                      <td className="p-4">
-                        <div className="font-medium">{order.id}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium">{order.table}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                          {order.items}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-bold">{order.amount}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-sm text-muted-foreground">{order.time}</div>
-                      </td>
-                      <td className="p-4">
-                        <Badge
-                          variant={
-                            order.status === "Pending" ? "default" :
-                              order.status === "Preparing" ? "secondary" :
-                                order.status === "Ready" ? "success" : "outline"
-                          }
-                          className="text-xs"
-                        >
-                          {order.status}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-medium text-lg mb-2">No Customer Orders</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                  Customer orders placed through QR codes will appear here in real-time.
+                  Demo and test orders are automatically filtered out.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Order ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Table ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Items</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Amount</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Time</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                        <td className="p-4">
+                          <div className="font-medium">{order.id}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium">{order.table}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                            {order.items}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-bold">{order.amount}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm text-muted-foreground">{order.time}</div>
+                        </td>
+                        <td className="p-4">
+                          <Badge
+                            variant={
+                              order.status === "Pending" ? "default" :
+                                order.status === "Preparing" ? "secondary" :
+                                  order.status === "Ready" ? "success" : "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {order.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
                         <Button
                           size="sm"
                           variant={
@@ -142,6 +154,7 @@ export const LiveOrders = ({ orders, onOrderAction, onRefresh, loading }) => {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
 
           {/* Quick Stats */}

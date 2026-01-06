@@ -226,7 +226,7 @@ const Admin = () => {
     }
   };
 
-  // Load data on component mount (only once)
+  // Load data on component mount (only essential data)
   useEffect(() => {
     const loadInitialData = async () => {
       // Load user data first
@@ -239,42 +239,43 @@ const Admin = () => {
         }
       }
 
-      // Load all data in parallel for better performance
+      // Only load menu items and tables initially, load orders when tab is active
       try {
         const restaurantId = getRestaurantId();
         if (restaurantId) {
-          const [menuData, tablesData, ordersData] = await Promise.allSettled([
-            menuApi.getMenuItems(restaurantId).catch(() => []),
-            tableApi.getTables(restaurantId).catch(() => []),
-            orderApi.getOrders(restaurantId).catch(() => [])
+          // Load menu items and tables in parallel
+          const [menuResult, tablesResult] = await Promise.allSettled([
+            menuApi.getMenuItems(restaurantId),
+            tableApi.getTables(restaurantId)
           ]);
 
-          if (menuData.status === 'fulfilled') {
-            setMenuItemsList(menuData.value);
+          if (menuResult.status === 'fulfilled') {
+            setMenuItemsList(menuResult.value);
+          } else {
+            console.warn('Failed to load menu items:', menuResult.reason);
           }
-          if (tablesData.status === 'fulfilled') {
-            setTables(tablesData.value);
-          }
-          if (ordersData.status === 'fulfilled') {
-            const transformedOrders = ordersData.value.map(order => ({
-              id: order._id,
-              table: `Table ${order.table.tableNumber}`,
-              items: order.items.map(item => `${item.menuItem.name} x${item.quantity}`).join(', '),
-              amount: `₹${order.totalAmount}`,
-              time: getRelativeTime(new Date(order.createdAt)),
-              status: order.status
-            }));
-            setOrders(transformedOrders);
+
+          if (tablesResult.status === 'fulfilled') {
+            setTables(tablesResult.value);
+          } else {
+            console.warn('Failed to load tables:', tablesResult.reason);
           }
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
-        setError('Failed to load some data. Please refresh the page.');
+        // Don't show error for initial load failures, let users try individual tabs
       }
     };
 
     loadInitialData();
   }, []);
+
+  // Load orders only when orders tab is active
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders();
+    }
+  }, [activeTab]);
 
   // Menu CRUD operations
   const handleAddMenuItem = async (item) => {
