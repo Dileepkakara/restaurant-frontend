@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://restaurant-backend-z2ga.onrender.com';
 
+console.log('API_BASE:', API_BASE); // Debug log
+
 function getToken() {
   return localStorage.getItem('rb_token');
 }
