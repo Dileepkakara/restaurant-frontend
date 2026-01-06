@@ -226,52 +226,55 @@ const Admin = () => {
     }
   };
 
-  // Load user data on component mount
+  // Load data on component mount (only once)
   useEffect(() => {
-    const userData = localStorage.getItem('rb_user');
-    if (userData) {
+    const loadInitialData = async () => {
+      // Load user data first
+      const userData = localStorage.getItem('rb_user');
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+
+      // Load all data in parallel for better performance
       try {
-        setUser(JSON.parse(userData));
+        const restaurantId = getRestaurantId();
+        if (restaurantId) {
+          const [menuData, tablesData, ordersData] = await Promise.allSettled([
+            menuApi.getMenuItems(restaurantId).catch(() => []),
+            tableApi.getTables(restaurantId).catch(() => []),
+            orderApi.getOrders(restaurantId).catch(() => [])
+          ]);
+
+          if (menuData.status === 'fulfilled') {
+            setMenuItemsList(menuData.value);
+          }
+          if (tablesData.status === 'fulfilled') {
+            setTables(tablesData.value);
+          }
+          if (ordersData.status === 'fulfilled') {
+            const transformedOrders = ordersData.value.map(order => ({
+              id: order._id,
+              table: `Table ${order.table.tableNumber}`,
+              items: order.items.map(item => `${item.menuItem.name} x${item.quantity}`).join(', '),
+              amount: `₹${order.totalAmount}`,
+              time: getRelativeTime(new Date(order.createdAt)),
+              status: order.status
+            }));
+            setOrders(transformedOrders);
+          }
+        }
       } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
+        console.error('Error loading initial data:', error);
+        setError('Failed to load some data. Please refresh the page.');
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    loadInitialData();
   }, []);
-
-  // Load menu items on component mount
-  useEffect(() => {
-    if (activeTab === 'menu') {
-      loadMenuItems();
-    }
-  }, [activeTab]);
-
-  // Load tables when tables tab is active
-  useEffect(() => {
-    if (activeTab === 'tables') {
-      loadTables();
-    }
-  }, [activeTab]);
-
-  // Load orders when orders tab is active
-  useEffect(() => {
-    if (activeTab === 'orders') {
-      loadOrders();
-    }
-  }, [activeTab]);
 
   // Menu CRUD operations
   const handleAddMenuItem = async (item) => {
