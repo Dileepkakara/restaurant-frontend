@@ -80,11 +80,12 @@ const Menu = () => {
 
         // Load categories
         const categoriesData = await customerApi.getCategories(currentRestaurantId);
-        setCategories(categoriesData);
+        setCategories(categoriesData || []);
 
-        // Load menu items
+        // Load menu items and normalize IDs for frontend components
         const menuData = await customerApi.getMenuItems(currentRestaurantId);
-        setMenuItems(menuData);
+        const normalized = (menuData || []).map((it) => ({ ...(it || {}), id: it._id || it.id }));
+        setMenuItems(normalized);
 
         // Validate table if provided
         if (tableParam) {
@@ -178,6 +179,8 @@ const Menu = () => {
         onFilterClick={() => setIsFilterOpen(true)}
         isLoggedIn={isLoggedIn}
         onLoginClick={() => setIsLoginOpen(true)}
+        restaurant={restaurant}
+        tableNumber={tableId}
       />
 
       <main className="container mx-auto px-4 py-6 space-y-6">

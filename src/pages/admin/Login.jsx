@@ -107,6 +107,7 @@ const Login = () => {
                   onChange={handleChange}
                   className="input-field w-full"
                   placeholder="you@restaurant.com"
+                  autoComplete="email"
                   required
                 />
               </div>
@@ -124,6 +125,7 @@ const Login = () => {
                     onChange={handleChange}
                     className="input-field w-full pr-10"
                     placeholder="Enter your password"
+                    autoComplete="current-password"
                     required
                   />
                   <button

@@ -1,7 +1,9 @@
 import api from './apiClient';
 
-export async function getOrders(restaurantId) {
-    return api.get(`/api/orders/restaurant/${restaurantId}`);
+export async function getOrders(restaurantId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `/api/orders/restaurant/${restaurantId}?${queryString}` : `/api/orders/restaurant/${restaurantId}`;
+    return api.get(url);
 }
 
 export async function createOrder(restaurantId, orderData) {

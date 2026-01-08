@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -24,14 +24,37 @@ export const TableManagement = ({
   const [editData, setEditData] = useState({ number: 0, capacity: 0, estimatedTime: 0 });
   const [showQR, setShowQR] = useState(null);
 
+  // Calculate next available table number
+  useEffect(() => {
+    if (tables && tables.length > 0) {
+      const existingNumbers = tables.map(table => table.number).sort((a, b) => a - b);
+      let nextNumber = 1;
+      for (const num of existingNumbers) {
+        if (nextNumber === num) {
+          nextNumber++;
+        } else if (nextNumber < num) {
+          break;
+        }
+      }
+      setNewTable(prev => ({ ...prev, number: nextNumber }));
+    }
+  }, [tables]);
+
   const handleAdd = () => {
+    // Check if table number already exists
+    const existingTable = tables.find(table => table.number === newTable.number);
+    if (existingTable) {
+      alert(`Table number ${newTable.number} already exists. Please choose a different number.`);
+      return;
+    }
+
     onAddTable({
       number: newTable.number,
       capacity: newTable.capacity,
       estimatedTime: newTable.estimatedTime,
       status: "available",
     });
-    setNewTable({ number: newTable.number + 1, capacity: 4, estimatedTime: 15 });
+    // Don't increment here - useEffect will set the next available number
     setShowAddForm(false);
   };
 

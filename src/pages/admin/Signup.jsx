@@ -184,6 +184,7 @@ const Signup = () => {
                 onChange={handleChange}
                 className="input-field w-full"
                 placeholder="John Doe"
+                autoComplete="name"
                 required
               />
             </div>
@@ -197,6 +198,7 @@ const Signup = () => {
                 onChange={handleChange}
                 className="input-field w-full"
                 placeholder="you@restaurant.com"
+                autoComplete="email"
                 required
               />
             </div>
@@ -213,6 +215,7 @@ const Signup = () => {
                 onChange={handleChange}
                 className="input-field w-full pr-10"
                 placeholder="Minimum 6 characters"
+                autoComplete="new-password"
                 required
               />
               <button
@@ -241,6 +244,7 @@ const Signup = () => {
                   onChange={handleChange}
                   className="input-field w-full"
                   placeholder="+1 (555) 123-4567"
+                  autoComplete="tel"
                 />
               </div>
 

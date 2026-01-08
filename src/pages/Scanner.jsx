@@ -29,6 +29,28 @@ const Scanner = () => {
       setError(null);
       setScannedResult(null);
 
+      // Check if camera is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera not supported on this device");
+      }
+
+      // Request camera permission first
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" } 
+        });
+        // Stop the test stream
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permError) {
+        if (permError.name === 'NotAllowedError') {
+          throw new Error("Camera permission denied. Please allow camera access and try again.");
+        } else if (permError.name === 'NotFoundError') {
+          throw new Error("No camera found on this device.");
+        } else {
+          throw new Error("Camera access failed. Please check your device settings.");
+        }
+      }
+
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode("qr-reader");
       }
@@ -37,13 +59,17 @@ const Scanner = () => {
         fps: 10,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
+        supportedScanTypes: ["qr_code"]
       };
 
       await scannerRef.current.start(
         { facingMode },
         config,
         (decodedText) => handleScanSuccess(decodedText),
-        () => { }
+        (errorMessage) => {
+          // Ignore scan errors, they're normal
+          console.debug("QR scan error:", errorMessage);
+        }
       );
 
       setIsScanning(true);
@@ -51,11 +77,7 @@ const Scanner = () => {
     } catch (err) {
       console.error("Scanner error:", err);
       setHasPermission(false);
-      if (err.message && err.message.includes("Permission")) {
-        setError("Camera permission denied. Please allow camera access to scan QR codes.");
-      } else {
-        setError("Unable to access camera. Please check your device settings.");
-      }
+      setError(err.message || "Unable to access camera. Please check your device settings.");
     }
   };
 

@@ -8,12 +8,23 @@ export const LoginModal = ({ isOpen, onClose, onLogin, onSkip }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin();
+    setLoading(true);
+    setError("");
+
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,9 +99,15 @@ export const LoginModal = ({ isOpen, onClose, onLogin, onSkip }) => {
                 />
               </div>
 
-              <Button type="submit" size="lg" className="w-full">
-                {isSignup ? "Create Account" : "Login"}
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : (isSignup ? "Create Account" : "Login")}
               </Button>
+
+              {error && (
+                <div className="text-sm text-destructive text-center bg-destructive/10 p-2 rounded-lg">
+                  {error}
+                </div>
+              )}
             </form>
 
             <div className="relative my-6">

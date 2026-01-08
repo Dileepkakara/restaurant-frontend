@@ -1,5 +1,6 @@
 // Admin.jsx
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -108,6 +109,7 @@ const initialTables = [
 ];
 
 const Admin = () => {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [menuItemsList, setMenuItemsList] = useState([]);
@@ -120,27 +122,26 @@ const Admin = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Get restaurant ID from localStorage (assuming user data is stored there)
+  // Get restaurant ID from localStorage (using user's restaurant)
   const getRestaurantId = () => {
+    // Prefer the logged-in user's restaurant (stored in localStorage under 'rb_user')
     try {
-      const userData = JSON.parse(localStorage.getItem('rb_user') || '{}');
-      const restaurant = userData.restaurant;
-      if (!restaurant) {
-        // Fallback: if no restaurant assigned, use the default seeded restaurant
-        console.warn('No restaurant assigned to user, using default restaurant');
-        return '6748b8f8e4b0a1b2c3d4e5f6'; // Default seeded restaurant ID
+      const raw = localStorage.getItem('rb_user');
+      if (raw) {
+        const user = JSON.parse(raw);
+        if (user && user.restaurant) {
+          // `restaurant` may be an id string or an object with `_id`/`id`
+          if (typeof user.restaurant === 'string') return user.restaurant;
+          if (user.restaurant._id) return user.restaurant._id;
+          if (user.restaurant.id) return user.restaurant.id;
+        }
       }
-
-      // Handle both cases: restaurant as ObjectId string or as populated object
-      if (typeof restaurant === 'string') {
-        return restaurant;
-      } else if (restaurant && restaurant._id) {
-        return restaurant._id;
-      }
-      return null;
-    } catch {
-      return null;
+    } catch (e) {
+      console.error('Error reading stored user for restaurant id:', e);
     }
+
+    // Fallback seeded restaurant id for demo
+    return '6748b8f8e4b0a1b2c3d4e5f6';
   };
 
   // Get relative time string
@@ -207,7 +208,8 @@ const Admin = () => {
     setOrdersLoading(true);
     setError(null);
     try {
-      const ordersData = await orderApi.getOrders(restaurantId);
+      // Load active orders for live orders view
+      const ordersData = await orderApi.getOrders(restaurantId, { status: 'active', limit: 20 });
       // Transform backend data to match frontend format
       const transformedOrders = ordersData.map(order => ({
         id: order._id,
@@ -229,18 +231,53 @@ const Admin = () => {
     }
   };
 
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const token = localStorage.getItem('rb_token');
+        const userData = JSON.parse(localStorage.getItem('rb_user') || '{}');
+
+        if (!token || !userData || userData.role !== 'admin') {
+          // Not authenticated or not an admin, redirect to login
+          navigate('/admin/login', { replace: true });
+          return;
+        }
+      } catch (error) {
+        // Error parsing user data, redirect to login
+        navigate('/admin/login', { replace: true });
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
   // Load data on component mount (only essential data)
   useEffect(() => {
     const loadInitialData = async () => {
-      // Load user data first
+      // Check authentication first
+      const token = localStorage.getItem('rb_token');
       const userData = localStorage.getItem('rb_user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-        }
+      
+      if (!token || !userData) {
+        // Not authenticated, redirect will happen in the auth check useEffect
+        return;
       }
+
+      let user;
+      try {
+        user = JSON.parse(userData);
+        if (user.role !== 'admin') {
+          // Not an admin, redirect will happen in the auth check useEffect
+          return;
+        }
+      } catch (error) {
+        // Error parsing user data, redirect will happen in the auth check useEffect
+        return;
+      }
+
+      // Load user data first
+      setUser(user);
 
       // Only load menu items and tables initially, load orders when tab is active
       try {
@@ -552,7 +589,7 @@ const Admin = () => {
         {/* Content */}
         <main className="p-4 lg:p-8">
           {activeTab === "dashboard" && (
-            <Dashboard orders={orders} menuItems={menuItemsList} />
+            <Dashboard />
           )}
 
           {activeTab === "orders" && (

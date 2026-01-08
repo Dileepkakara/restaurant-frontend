@@ -10,7 +10,7 @@ import {
   X
 } from "lucide-react";
 
-export const MenuHeader = ({ cartCount, onCartClick, onFilterClick, isLoggedIn, onLoginClick }) => {
+export const MenuHeader = ({ cartCount, onCartClick, onFilterClick, isLoggedIn, onLoginClick, restaurant, tableNumber }) => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -23,8 +23,8 @@ export const MenuHeader = ({ cartCount, onCartClick, onFilterClick, isLoggedIn, 
               <QrCode className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-lg">Spice Garden</h1>
-              <p className="text-xs text-muted-foreground">Table #12</p>
+              <h1 className="font-display font-bold text-lg">{restaurant?.name || 'Spice Garden'}</h1>
+              <p className="text-xs text-muted-foreground">{tableNumber ? `Table #${tableNumber}` : 'Table'}</p>
             </div>
           </div>
 

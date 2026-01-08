@@ -1,6 +1,6 @@
 // src/pages/SuperAdmin.jsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getPendingRestaurants, approveRestaurant as apiApproveRestaurant, getApprovedRestaurants, createRestaurant as apiCreateRestaurant, updateRestaurant as apiUpdateRestaurant, deleteRestaurant as apiDeleteRestaurant } from '@/api/restaurantApi';
 import { listPlans as apiListPlans, createPlan as apiCreatePlan, updatePlan as apiUpdatePlan, deletePlan as apiDeletePlan } from '@/api/subscriptionApi';
@@ -59,12 +59,34 @@ const supportTickets = [
 // moved to top
 
 export default function SuperAdminPortal() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(TABS.DASHBOARD);
   const [restaurants, setRestaurants] = useState([]); // approved restaurants
   const [pendingRestaurants, setPendingRestaurants] = useState([]); // pending approval
   const [plans, setPlans] = useState(initialPlans);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const token = localStorage.getItem('rb_token');
+        const userData = JSON.parse(localStorage.getItem('rb_user') || '{}');
+
+        if (!token || !userData || userData.role !== 'super-admin') {
+          // Not authenticated or not a super-admin, redirect to login
+          navigate('/admin/login', { replace: true });
+          return;
+        }
+      } catch (error) {
+        // Error parsing user data, redirect to login
+        navigate('/admin/login', { replace: true });
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   // Restaurant Modal State
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
